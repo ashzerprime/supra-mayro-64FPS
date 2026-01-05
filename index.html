@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPRA MAYRO 64FPS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Sans MS', cursive;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        #menu h1 {
+            font-size: 4em;
+            color: #FFD700;
+            text-shadow: 4px 4px 0 #FF4500, 8px 8px 0 #000;
+            margin-bottom: 50px;
+            animation: bounce 1s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .menu-btn {
+            background: linear-gradient(145deg, #FFD700, #FFA500);
+            border: 4px solid #FF4500;
+            color: #8B0000;
+            font-size: 1.5em;
+            font-weight: bold;
+            padding: 20px 40px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 15px;
+            box-shadow: 0 8px 0 #8B4513;
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+        
+        .menu-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 13px 0 #8B4513;
+        }
+        
+        .menu-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #8B4513;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #FFD700;
+            font-size: 1.5em;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 100;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #FFF;
+            font-size: 1em;
+            text-shadow: 2px 2px 0 #000;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>SUPRA MAYRO 64FPS</h1>
+        <button class="menu-btn" onclick="startGame()">DÉMARRER</button>
+        <button class="menu-btn" onclick="window.open('https://www.youtube.com/@ashzer_prime', '_blank')">MON YOUTUBE</button>
+    </div>
+    
+    <canvas id="gameCanvas" class="hidden"></canvas>
+    
+    <div id="hud" class="hidden">
+        <div>★ Étoiles: <span id="stars">0</span></div>
+        <div>FPS: <span id="fps">64</span></div>
+    </div>
+    
+    <div id="instructions" class="hidden">
+        WASD: Déplacer | ESPACE: Sauter | SOURIS: Caméra | E: Entrer dans le tableau
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, player, castle, painting;
+        let keys = {}, mouseX = 0, mouseY = 0;
+        let velocity = {x: 0, y: 0, z: 0};
+        let isJumping = false, jumpCount = 0;
+        let inLevel = false;
+        let enemies = [], stars = 0;
+        
+        function startGame() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('gameCanvas').classList.remove('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('instructions').classList.remove('hidden');
+            init();
+            animate();
+        }
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({canvas: document.getElementById('gameCanvas'), antialias: false});
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            createPlayer();
+            createCastle();
+            
+            document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+            document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+            document.addEventListener('mousemove', (e) => {
+                mouseX += e.movementX * 0.002;
+                mouseY -= e.movementY * 0.002;
+                mouseY = Math.max(-Math.PI/3, Math.min(Math.PI/3, mouseY));
+            });
+            
+            document.getElementById('gameCanvas').addEventListener('click', () => {
+                document.getElementById('gameCanvas').requestPointerLock();
+            });
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+        
+        function createPlayer() {
+            const geometry = new THREE.BoxGeometry(1, 2, 1);
+            const material = new THREE.MeshLambertMaterial({color: 0xFF0000});
+            player = new THREE.Mesh(geometry, material);
+            player.position.set(0, 2, 20);
+            player.castShadow = true;
+            scene.add(player);
+        }
+        
+        function createCastle() {
+            const floorGeo = new THREE.BoxGeometry(50, 0.5, 50);
+            const floorMat = new THREE.MeshLambertMaterial({color: 0xDEB887});
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.y = -0.25;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            const wallMat = new THREE.MeshLambertMaterial({color: 0xF5DEB3});
+            
+            const wallBack = new THREE.Mesh(new THREE.BoxGeometry(50, 20, 1), wallMat);
+            wallBack.position.set(0, 10, -25);
+            wallBack.receiveShadow = true;
+            scene.add(wallBack);
+            
+            const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 50), wallMat);
+            wallLeft.position.set(-25, 10, 0);
+            scene.add(wallLeft);
+            
+            const wallRight = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 50), wallMat);
+            wallRight.position.set(25, 10, 0);
+            scene.add(wallRight);
+            
+            const stairMat = new THREE.MeshLambertMaterial({color: 0xCD853F});
+            for(let i = 0; i < 10; i++) {
+                const stairL = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 2), stairMat);
+                stairL.position.set(-10, i * 0.5, -10 - i * 2);
+                scene.add(stairL);
+                
+                const stairR = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 2), stairMat);
+                stairR.position.set(10, i * 0.5, -10 - i * 2);
+                scene.add(stairR);
+            }
+            
+            const windowMat = new THREE.MeshBasicMaterial({color: 0x87CEEB});
+            for(let i = -2; i <= 2; i++) {
+                if(i === 0) continue;
+                const win = new THREE.Mesh(new THREE.BoxGeometry(3, 5, 0.1), windowMat);
+                win.position.set(i * 10, 8, -24.9);
+                scene.add(win);
+            }
+            
+            const paintingGeo = new THREE.BoxGeometry(8, 10, 0.5);
+            const paintingMat = new THREE.MeshLambertMaterial({color: 0x228B22});
+            painting = new THREE.Mesh(paintingGeo, paintingMat);
+            painting.position.set(0, 7, -24.5);
+            scene.add(painting);
+            
+            const frameMat = new THREE.MeshLambertMaterial({color: 0xFFD700});
+            const frameTop = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.3, 0.3), frameMat);
+            frameTop.position.set(0, 12.2, -24.3);
+            scene.add(frameTop);
+            
+            const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.3, 0.3), frameMat);
+            frameBottom.position.set(0, 1.8, -24.3);
+            scene.add(frameBottom);
+            
+            const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.3, 10.5, 0.3), frameMat);
+            frameLeft.position.set(-4.25, 7, -24.3);
+            scene.add(frameLeft);
+            
+            const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.3, 10.5, 0.3), frameMat);
+            frameRight.position.set(4.25, 7, -24.3);
+            scene.add(frameRight);
+            
+            castle = {floor, walls: [wallBack, wallLeft, wallRight], painting};
+        }
+        
+        function createLevel() {
+            scene.children = scene.children.filter(c => 
+                c === player || c.type === 'AmbientLight' || c.type === 'DirectionalLight'
+            );
+            
+            const groundGeo = new THREE.PlaneGeometry(200, 200);
+            const groundMat = new THREE.MeshLambertMaterial({color: 0x7CFC00});
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            for(let i = 0; i < 20; i++) {
+                const x = (Math.random() - 0.5) * 100;
+                const z = (Math.random() - 0.5) * 100;
+                const h = Math.random() * 3 + 2;
+                
+                const platform = new THREE.Mesh(
+                    new THREE.BoxGeometry(5, h, 5),
+                    new THREE.MeshLambertMaterial({color: 0xFFD700})
+                );
+                platform.position.set(x, h/2, z);
+                platform.castShadow = true;
+                scene.add(platform);
+            }
+            
+            for(let i = 0; i < 5; i++) {
+                const enemy = new THREE.Mesh(
+                    new THREE.SphereGeometry(1, 8, 8),
+                    new THREE.MeshLambertMaterial({color: 0x8B4513})
+                );
+                enemy.position.set(
+                    (Math.random() - 0.5) * 80,
+                    1,
+                    (Math.random() - 0.5) * 80
+                );
+                enemy.castShadow = true;
+                enemy.userData = {vx: (Math.random() - 0.5) * 0.1, vz: (Math.random() - 0.5) * 0.1};
+                scene.add(enemy);
+                enemies.push(enemy);
+            }
+            
+            for(let i = 0; i < 10; i++) {
+                const star = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(0.5),
+                    new THREE.MeshBasicMaterial({color: 0xFFFF00})
+                );
+                star.position.set(
+                    (Math.random() - 0.5) * 100,
+                    Math.random() * 10 + 2,
+                    (Math.random() - 0.5) * 100
+                );
+                scene.add(star);
+            }
+            
+            player.position.set(0, 2, 0);
+            velocity = {x: 0, y: 0, z: 0};
+        }
+        
+        function updatePlayer() {
+            const speed = 0.3;
+            const forward = new THREE.Vector3(Math.sin(mouseX), 0, Math.cos(mouseX));
+            const right = new THREE.Vector3(Math.cos(mouseX), 0, -Math.sin(mouseX));
+            
+            if(keys['w']) {
+                velocity.x -= forward.x * speed;
+                velocity.z -= forward.z * speed;
+            }
+            if(keys['s']) {
+                velocity.x += forward.x * speed;
+                velocity.z += forward.z * speed;
+            }
+            if(keys['a']) {
+                velocity.x -= right.x * speed;
+                velocity.z -= right.z * speed;
+            }
+            if(keys['d']) {
+                velocity.x += right.x * speed;
+                velocity.z += right.z * speed;
+            }
+            
+            if(keys[' '] && !isJumping) {
+                velocity.y = 0.4 + (jumpCount * 0.1);
+                isJumping = true;
+                jumpCount = Math.min(jumpCount + 1, 2);
+            }
+            
+            if(!keys[' ']) {
+                isJumping = false;
+            }
+            
+            velocity.y -= 0.02;
+            velocity.x *= 0.85;
+            velocity.z *= 0.85;
+            
+            player.position.x += velocity.x;
+            player.position.y += velocity.y;
+            player.position.z += velocity.z;
+            
+            if(player.position.y < 1) {
+                player.position.y = 1;
+                velocity.y = 0;
+                jumpCount = 0;
+            }
+            
+            if(!inLevel) {
+                player.position.x = Math.max(-23, Math.min(23, player.position.x));
+                player.position.z = Math.max(-23, Math.min(23, player.position.z));
+                
+                const dist = player.position.distanceTo(painting.position);
+                if(dist < 5 && keys['e']) {
+                    inLevel = true;
+                    createLevel();
+                }
+            } else {
+                enemies.forEach(enemy => {
+                    enemy.position.x += enemy.userData.vx;
+                    enemy.position.z += enemy.userData.vz;
+                    enemy.rotation.y += 0.05;
+                    
+                    if(Math.abs(enemy.position.x) > 90) enemy.userData.vx *= -1;
+                    if(Math.abs(enemy.position.z) > 90) enemy.userData.vz *= -1;
+                });
+                
+                scene.children.forEach(child => {
+                    if(child.geometry && child.geometry.type === 'OctahedronGeometry') {
+                        child.rotation.y += 0.1;
+                        if(player.position.distanceTo(child.position) < 2) {
+                            scene.remove(child);
+                            stars++;
+                            document.getElementById('stars').textContent = stars;
+                        }
+                    }
+                });
+            }
+            
+            const cameraOffset = new THREE.Vector3(
+                Math.sin(mouseX) * 8,
+                5 + mouseY * 5,
+                Math.cos(mouseX) * 8
+            );
+            camera.position.copy(player.position).add(cameraOffset);
+            camera.lookAt(player.position);
+        }
+        
+        let lastTime = performance.now();
+        let frames = 0;
+        let fpsTime = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const now = performance.now();
+            const delta = now - lastTime;
+            lastTime = now;
+            
+            frames++;
+            fpsTime += delta;
+            
+            if(fpsTime >= 1000) {
+                document.getElementById('fps').textContent = frames;
+                frames = 0;
+                fpsTime = 0;
+            }
+            
+            updatePlayer();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
