@@ -148,6 +148,7 @@
         let enemies = [], stars = 0;
         let gameStarted = false;
         let animationId = null;
+        let collisionObjects = [];
         
         document.getElementById('startBtn').addEventListener('click', function() {
             console.log('Bouton démarrer cliqué!');
@@ -232,21 +233,113 @@
         }
         
         function createPlayer() {
-            const geometry = new THREE.BoxGeometry(1, 2, 1);
-            const material = new THREE.MeshLambertMaterial({color: 0xFF0000});
-            player = new THREE.Mesh(geometry, material);
+            player = new THREE.Group();
+            
+            // Corps
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.5, 1, 8),
+                new THREE.MeshLambertMaterial({color: 0xFF0000})
+            );
+            body.position.y = 0.5;
+            body.castShadow = true;
+            
+            // Tête
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 8, 8),
+                new THREE.MeshLambertMaterial({color: 0xFFDBAC})
+            );
+            head.position.y = 1.5;
+            head.castShadow = true;
+            
+            // Casquette
+            const cap = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.3, 0.3, 8),
+                new THREE.MeshLambertMaterial({color: 0xFF0000})
+            );
+            cap.position.y = 1.9;
+            cap.castShadow = true;
+            
+            // Visière
+            const visor = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.1, 0.4),
+                new THREE.MeshLambertMaterial({color: 0x8B0000})
+            );
+            visor.position.set(0, 1.7, 0.4);
+            visor.castShadow = true;
+            
+            // Moustache
+            const mustache = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.1, 0.2),
+                new THREE.MeshLambertMaterial({color: 0x000000})
+            );
+            mustache.position.set(0, 1.4, 0.5);
+            mustache.castShadow = true;
+            
+            // Bras gauche
+            const leftArm = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6),
+                new THREE.MeshLambertMaterial({color: 0xFF0000})
+            );
+            leftArm.position.set(-0.6, 0.6, 0);
+            leftArm.rotation.z = 0.3;
+            leftArm.castShadow = true;
+            
+            // Bras droit
+            const rightArm = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 0.8, 6),
+                new THREE.MeshLambertMaterial({color: 0xFF0000})
+            );
+            rightArm.position.set(0.6, 0.6, 0);
+            rightArm.rotation.z = -0.3;
+            rightArm.castShadow = true;
+            
+            // Jambe gauche
+            const leftLeg = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.18, 0.6, 6),
+                new THREE.MeshLambertMaterial({color: 0x0000FF})
+            );
+            leftLeg.position.set(-0.25, -0.3, 0);
+            leftLeg.castShadow = true;
+            
+            // Jambe droite
+            const rightLeg = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.18, 0.6, 6),
+                new THREE.MeshLambertMaterial({color: 0x0000FF})
+            );
+            rightLeg.position.set(0.25, -0.3, 0);
+            rightLeg.castShadow = true;
+            
+            // Chaussure gauche
+            const leftShoe = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.2, 0.5),
+                new THREE.MeshLambertMaterial({color: 0x8B4513})
+            );
+            leftShoe.position.set(-0.25, -0.7, 0.1);
+            leftShoe.castShadow = true;
+            
+            // Chaussure droite
+            const rightShoe = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.2, 0.5),
+                new THREE.MeshLambertMaterial({color: 0x8B4513})
+            );
+            rightShoe.position.set(0.25, -0.7, 0.1);
+            rightShoe.castShadow = true;
+            
+            player.add(body, head, cap, visor, mustache, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe);
             player.position.set(0, 2, 20);
-            player.castShadow = true;
             scene.add(player);
         }
         
         function createCastle() {
+            collisionObjects = [];
+            
             const floorGeo = new THREE.BoxGeometry(50, 0.5, 50);
             const floorMat = new THREE.MeshLambertMaterial({color: 0xDEB887});
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.position.y = -0.25;
             floor.receiveShadow = true;
             scene.add(floor);
+            collisionObjects.push(floor);
             
             const wallMat = new THREE.MeshLambertMaterial({color: 0xF5DEB3});
             
@@ -254,24 +347,29 @@
             wallBack.position.set(0, 10, -25);
             wallBack.receiveShadow = true;
             scene.add(wallBack);
+            collisionObjects.push(wallBack);
             
             const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 50), wallMat);
             wallLeft.position.set(-25, 10, 0);
             scene.add(wallLeft);
+            collisionObjects.push(wallLeft);
             
             const wallRight = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 50), wallMat);
             wallRight.position.set(25, 10, 0);
             scene.add(wallRight);
+            collisionObjects.push(wallRight);
             
             const stairMat = new THREE.MeshLambertMaterial({color: 0xCD853F});
             for(let i = 0; i < 10; i++) {
                 const stairL = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 2), stairMat);
                 stairL.position.set(-10, i * 0.5, -10 - i * 2);
                 scene.add(stairL);
+                collisionObjects.push(stairL);
                 
                 const stairR = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 2), stairMat);
                 stairR.position.set(10, i * 0.5, -10 - i * 2);
                 scene.add(stairR);
+                collisionObjects.push(stairR);
             }
             
             const windowMat = new THREE.MeshBasicMaterial({color: 0x87CEEB});
@@ -313,6 +411,8 @@
                 c === player || c.type === 'AmbientLight' || c.type === 'DirectionalLight'
             );
             
+            collisionObjects = [];
+            
             const groundGeo = new THREE.PlaneGeometry(200, 200);
             const groundMat = new THREE.MeshLambertMaterial({color: 0x7CFC00});
             const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -332,23 +432,55 @@
                 platform.position.set(x, h/2, z);
                 platform.castShadow = true;
                 scene.add(platform);
+                collisionObjects.push(platform);
             }
             
             enemies = [];
             for(let i = 0; i < 5; i++) {
-                const enemy = new THREE.Mesh(
-                    new THREE.SphereGeometry(1, 8, 8),
+                const enemyGroup = new THREE.Group();
+                
+                // Corps ennemi
+                const body = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.8, 8, 8),
                     new THREE.MeshLambertMaterial({color: 0x8B4513})
                 );
-                enemy.position.set(
+                body.castShadow = true;
+                
+                // Yeux
+                const leftEye = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15, 6, 6),
+                    new THREE.MeshBasicMaterial({color: 0xFFFFFF})
+                );
+                leftEye.position.set(-0.3, 0.2, 0.7);
+                
+                const rightEye = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15, 6, 6),
+                    new THREE.MeshBasicMaterial({color: 0xFFFFFF})
+                );
+                rightEye.position.set(0.3, 0.2, 0.7);
+                
+                // Pupilles
+                const leftPupil = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.08, 4, 4),
+                    new THREE.MeshBasicMaterial({color: 0x000000})
+                );
+                leftPupil.position.set(-0.3, 0.2, 0.78);
+                
+                const rightPupil = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.08, 4, 4),
+                    new THREE.MeshBasicMaterial({color: 0x000000})
+                );
+                rightPupil.position.set(0.3, 0.2, 0.78);
+                
+                enemyGroup.add(body, leftEye, rightEye, leftPupil, rightPupil);
+                enemyGroup.position.set(
                     (Math.random() - 0.5) * 80,
                     1,
                     (Math.random() - 0.5) * 80
                 );
-                enemy.castShadow = true;
-                enemy.userData = {vx: (Math.random() - 0.5) * 0.1, vz: (Math.random() - 0.5) * 0.1};
-                scene.add(enemy);
-                enemies.push(enemy);
+                enemyGroup.userData = {vx: (Math.random() - 0.5) * 0.1, vz: (Math.random() - 0.5) * 0.1};
+                scene.add(enemyGroup);
+                enemies.push(enemyGroup);
             }
             
             for(let i = 0; i < 10; i++) {
