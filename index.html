@@ -293,7 +293,7 @@
             rightShoe.castShadow = true;
             
             player.add(body, overalls, head, cap, visor, leftGlove, rightGlove, leftShoe, rightShoe);
-            player.position.set(0, 2, 18);
+            player.position.set(0, 1, 18);
             scene.add(player);
         }
         
@@ -416,6 +416,57 @@
             scene.add(mountainBase);
             collisionObjects.push(mountainBase);
             
+            const mountainPlatform1 = new THREE.Mesh(
+                new THREE.CylinderGeometry(8, 10, 3, 8),
+                new THREE.MeshLambertMaterial({color: 0x8B6914})
+            );
+            mountainPlatform1.position.set(-30, 18, -30);
+            mountainPlatform1.castShadow = true;
+            mountainPlatform1.receiveShadow = true;
+            scene.add(mountainPlatform1);
+            collisionObjects.push(mountainPlatform1);
+            
+            const mountainPlatform2 = new THREE.Mesh(
+                new THREE.CylinderGeometry(6, 8, 3, 8),
+                new THREE.MeshLambertMaterial({color: 0x9B7714})
+            );
+            mountainPlatform2.position.set(-35, 24, -35);
+            mountainPlatform2.castShadow = true;
+            mountainPlatform2.receiveShadow = true;
+            scene.add(mountainPlatform2);
+            collisionObjects.push(mountainPlatform2);
+            
+            const topPlatform = new THREE.Mesh(
+                new THREE.CylinderGeometry(5, 6, 2, 8),
+                new THREE.MeshLambertMaterial({color: 0xAB8714})
+            );
+            topPlatform.position.set(-40, 31, -40);
+            topPlatform.castShadow = true;
+            topPlatform.receiveShadow = true;
+            scene.add(topPlatform);
+            collisionObjects.push(topPlatform);
+            
+            for(let i = 0; i < 6; i++) {
+                const stepHeight = 2 + i * 2.5;
+                const stepSize = 4;
+                const angle = (i * Math.PI) / 6;
+                const radius = 25 - i * 2;
+                
+                const step = new THREE.Mesh(
+                    new THREE.BoxGeometry(stepSize, 1, stepSize),
+                    new THREE.MeshLambertMaterial({color: 0xA0826D})
+                );
+                step.position.set(
+                    -40 + Math.cos(angle) * radius,
+                    stepHeight,
+                    -40 + Math.sin(angle) * radius
+                );
+                step.castShadow = true;
+                step.receiveShadow = true;
+                scene.add(step);
+                collisionObjects.push(step);
+            }
+            
             for(let i = 0; i < 8; i++) {
                 const enemy = createBobOmb();
                 const angle = (i / 8) * Math.PI * 2;
@@ -451,10 +502,10 @@
             );
             
             starObject.add(starMesh, starGlow);
-            starObject.position.set(0, 8, -50);
+            starObject.position.set(-40, 35, -40);
             scene.add(starObject);
             
-            player.position.set(0, 3, 0);
+            player.position.set(0, 1, 0);
             velocity.set(0, 0, 0);
         }
         
@@ -530,6 +581,23 @@
             return null;
         }
         
+        function getGroundHeight(x, z) {
+            let maxHeight = 0;
+            
+            for(let obj of collisionObjects) {
+                const objBox = new THREE.Box3().setFromObject(obj);
+                
+                if(x >= objBox.min.x && x <= objBox.max.x &&
+                   z >= objBox.min.z && z <= objBox.max.z) {
+                    if(objBox.max.y > maxHeight) {
+                        maxHeight = objBox.max.y;
+                    }
+                }
+            }
+            
+            return maxHeight;
+        }
+        
         function updatePlayer() {
             const forward = new THREE.Vector3(
                 -Math.sin(mouseX),
@@ -564,31 +632,36 @@
             velocity.x += moveX * MOVE_SPEED;
             velocity.z += moveZ * MOVE_SPEED;
             
-            velocity.y -= GRAVITY;
-            
             velocity.x *= FRICTION;
             velocity.z *= FRICTION;
             
-            const newPosX = player.position.clone();
-            newPosX.x += velocity.x;
-            if(!checkCollision(newPosX)) {
-                player.position.x = newPosX.x;
+            const newX = player.position.x + velocity.x;
+            const newZ = player.position.z + velocity.z;
+            
+            const groundHeightAtNewPos = getGroundHeight(newX, newZ);
+            const heightDifference = groundHeightAtNewPos - (player.position.y - 1);
+            
+            if(heightDifference > 0 && heightDifference < 2) {
+                player.position.x = newX;
+                player.position.z = newZ;
+                player.position.y = groundHeightAtNewPos + 1;
+                velocity.y = 0;
+                isGrounded = true;
+            } else if(heightDifference <= 0) {
+                player.position.x = newX;
+                player.position.z = newZ;
             } else {
-                velocity.x = 0;
+                velocity.x *= 0.5;
+                velocity.z *= 0.5;
             }
             
-            const newPosZ = player.position.clone();
-            newPosZ.z += velocity.z;
-            if(!checkCollision(newPosZ)) {
-                player.position.z = newPosZ.z;
-            } else {
-                velocity.z = 0;
-            }
-            
+            velocity.y -= GRAVITY;
             player.position.y += velocity.y;
             
-            if(player.position.y <= 0.5) {
-                player.position.y = 0.5;
+            const groundHeightAtCurrentPos = getGroundHeight(player.position.x, player.position.z);
+            
+            if(player.position.y - 1 <= groundHeightAtCurrentPos) {
+                player.position.y = groundHeightAtCurrentPos + 1;
                 velocity.y = 0;
                 isGrounded = true;
             } else {
@@ -668,7 +741,8 @@
             if(!starObject) return;
             
             starObject.rotation.y += 0.05;
-            starObject.position.y = 8 + Math.sin(Date.now() * 0.002) * 0.5;
+            const baseY = 35;
+            starObject.position.y = baseY + Math.sin(Date.now() * 0.002) * 0.8;
             
             const dist = player.position.distanceTo(starObject.position);
             if(dist < 3) {
