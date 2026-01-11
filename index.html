@@ -528,7 +528,7 @@
             return null;
         }
         
-        function getGroundHeight(x, z) {
+        function getGroundHeight(x, z, currentY) {
             let maxHeight = 0;
             
             for(let obj of collisionObjects) {
@@ -542,7 +542,8 @@
                 
                 if(x >= expandedBox.min.x && x <= expandedBox.max.x &&
                    z >= expandedBox.min.z && z <= expandedBox.max.z) {
-                    if(objBox.max.y > maxHeight) {
+                    
+                    if(objBox.max.y <= currentY + 0.5 && objBox.max.y > maxHeight) {
                         maxHeight = objBox.max.y;
                     }
                 }
@@ -594,9 +595,9 @@
             velocity.y -= GRAVITY;
             player.position.y += velocity.y;
             
-            const groundHeight = getGroundHeight(player.position.x, player.position.z);
+            const groundHeight = getGroundHeight(player.position.x, player.position.z, player.position.y - 1);
             
-            if(player.position.y - 1 <= groundHeight) {
+            if(player.position.y - 1 <= groundHeight && velocity.y <= 0) {
                 player.position.y = groundHeight + 1;
                 velocity.y = 0;
                 isGrounded = true;
