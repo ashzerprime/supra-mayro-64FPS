@@ -161,9 +161,6 @@
         <small style="font-size: 0.6em; margin-top: 20px; display: block;">
             La suite sur le prochain site en cours de création...
         </small>
-        <small style="font-size: 0.5em; margin-top: 10px; display: block; color: rgba(0,0,0,0.7);">
-            (appuie sur F+G+M pour plus de blagues)
-        </small>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -185,20 +182,15 @@
         
         const GRAVITY = 0.018;
         const JUMP_FORCE = 0.4;
-        const MOVE_SPEED = 0.05; // Réduit de 0.12 à 0.05 pour un Mario plus lent
-        const FRICTION = 0.92; // Augmenté pour moins de glisse (était 0.85)
+        const MOVE_SPEED = 0.05;
+        const FRICTION = 0.92;
         
-        // Easter egg F+G+M
-        let easterKeySequence = [];
-        const easterKeyCode = ['KeyF', 'KeyG', 'KeyM'];
-        let lastKeyTime = 0;
-        const EASTER_EGG_TIMEOUT = 30000; // 30 secondes
-        let noclipEnabled = false;
+        // Variables pour le labyrinthe
+        let redPlate = null;
         let inLabyrinth = false;
         let secretEntity = null;
         
         document.getElementById('startBtn').addEventListener('click', startGame);
-        
         
         function startGame() {
             if (gameStarted) return;
@@ -211,40 +203,6 @@
             
             init();
             animate();
-        }
-        
-        function triggerEasterEgg() {
-            if(inLevel && !inLabyrinth) {
-                console.log('Activation du mode secret !');
-                noclipEnabled = true;
-                inLabyrinth = true;
-                document.getElementById('victoryMessage').style.display = 'none';
-                
-                // Retirer le HUD normal
-                document.getElementById('hud').style.display = 'none';
-                
-                // Ajouter le message "Objectif : Survivre !!"
-                const existingObjective = document.getElementById('objective');
-                if(existingObjective) existingObjective.remove();
-                
-                const objectiveDiv = document.createElement('div');
-                objectiveDiv.id = 'objective';
-                objectiveDiv.textContent = 'Objectif : Survivre !!';
-                objectiveDiv.style.position = 'absolute';
-                objectiveDiv.style.top = '20px';
-                objectiveDiv.style.left = '20px';
-                objectiveDiv.style.color = '#FF0000';
-                objectiveDiv.style.fontSize = '1.8em';
-                objectiveDiv.style.fontWeight = 'bold';
-                objectiveDiv.style.textShadow = '2px 2px 4px #000';
-                objectiveDiv.style.zIndex = '150';
-                document.body.appendChild(objectiveDiv);
-                
-                createLabyrinth();
-            } else {
-                console.log('Code secret détecté mais pas activable maintenant');
-                console.log('inLevel:', inLevel, 'inLabyrinth:', inLabyrinth);
-            }
         }
         
         function init() {
@@ -277,30 +235,13 @@
             createPlayer();
             createCastle();
             
-            // Un seul listener keydown qui gère à la fois le code secret et les touches normales
+            // Réinitialiser le scale et rotation du joueur
+            player.scale.set(1, 1, 1);
+            player.rotation.set(0, 0, 0);
+            
+            // Listener simple pour les touches
             document.addEventListener('keydown', (e) => {
-                // Mettre à jour les touches normales
                 keys[e.code] = true;
-                
-                // Gestion du code secret F+G+M
-                const currentTime = Date.now();
-                
-                if(easterKeySequence.length > 0 && currentTime - lastKeyTime > EASTER_EGG_TIMEOUT) {
-                    easterKeySequence = [];
-                }
-                
-                easterKeySequence.push(e.code);
-                lastKeyTime = currentTime;
-                
-                console.log('Touche appuyée:', e.code, 'Séquence:', easterKeySequence);
-                
-                if(easterKeySequence.length > 3) easterKeySequence.shift();
-                
-                if(JSON.stringify(easterKeySequence) === JSON.stringify(easterKeyCode)) {
-                    console.log('🎉 CODE SECRET DÉTECTÉ !');
-                    triggerEasterEgg();
-                    easterKeySequence = [];
-                }
             });
             
             document.addEventListener('keyup', (e) => keys[e.code] = false);
@@ -333,39 +274,53 @@
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.6), matRed);
             body.position.y = 0.8;
             body.castShadow = true;
+            player.add(body);
             
             const overalls = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.65), matBlue);
             overalls.position.y = 0.35;
             overalls.castShadow = true;
+            player.add(overalls);
             
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 12), matSkin);
             head.position.y = 1.5;
             head.castShadow = true;
+            player.add(head);
             
             const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.35, 0.3, 12), matRed);
             cap.position.y = 1.85;
             cap.castShadow = true;
+            player.add(cap);
             
             const visor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), new THREE.MeshLambertMaterial({color: 0x8B0000}));
             visor.position.set(0, 1.7, 0.45);
+            player.add(visor);
             
             const leftGlove = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), matWhite);
             leftGlove.position.set(-0.65, 0.6, 0);
             leftGlove.castShadow = true;
+            player.add(leftGlove);
             
             const rightGlove = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), matWhite);
             rightGlove.position.set(0.65, 0.6, 0);
             rightGlove.castShadow = true;
+            player.add(rightGlove);
             
             const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.5), matBrown);
             leftShoe.position.set(-0.25, -0.5, 0.1);
             leftShoe.castShadow = true;
+            player.add(leftShoe);
             
             const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.5), matBrown);
             rightShoe.position.set(0.25, -0.5, 0.1);
             rightShoe.castShadow = true;
+            player.add(rightShoe);
             
-            player.add(body, overalls, head, cap, visor, leftGlove, rightGlove, leftShoe, rightShoe);
+            // Stocker les données pour l'animation de corruption
+            player.userData = {
+                deformationAmount: 0,
+                children: [...player.children]
+            };
+            
             player.position.set(0, 1, 18);
             scene.add(player);
         }
@@ -438,6 +393,10 @@
             scene.children = scene.children.filter(c => 
                 c === player || c.type === 'AmbientLight' || c.type === 'DirectionalLight'
             );
+            
+            // Réinitialiser Mario au normal
+            player.scale.set(1, 1, 1);
+            player.rotation.set(0, 0, 0);
             
             collisionObjects = [];
             enemies = [];
@@ -595,8 +554,74 @@
             starObject.position.set(-40, 32, -38);
             scene.add(starObject);
             
+            // Créer la plaque rouge pour accéder au labyrinthe
+            redPlate = new THREE.Mesh(
+                new THREE.BoxGeometry(8, 0.5, 8),
+                new THREE.MeshLambertMaterial({color: 0xFF0000})
+            );
+            redPlate.position.set(0, 2.5, 80);
+            redPlate.castShadow = true;
+            redPlate.receiveShadow = true;
+            scene.add(redPlate);
+            collisionObjects.push(redPlate);
+            
             player.position.set(0, 2, 0);
             velocity.set(0, 0, 0);
+        }
+        
+        function enterLabyrinth() {
+            inLabyrinth = true;
+            
+            // Afficher le message avec style CORROMPU
+            const objectiveDiv = document.createElement('div');
+            objectiveDiv.id = 'objective';
+            objectiveDiv.textContent = 'Objectif : Survivre !!';
+            objectiveDiv.style.position = 'absolute';
+            objectiveDiv.style.top = '20px';
+            objectiveDiv.style.left = '20px';
+            objectiveDiv.style.color = '#FF0000';
+            objectiveDiv.style.fontSize = '1.8em';
+            objectiveDiv.style.fontWeight = 'bold';
+            objectiveDiv.style.textShadow = '2px 2px 4px #000, 0 0 15px #FF0000, -2px -2px 0 #00FF00';
+            objectiveDiv.style.zIndex = '150';
+            objectiveDiv.style.fontFamily = 'monospace';
+            objectiveDiv.style.letterSpacing = '2px';
+            objectiveDiv.style.animation = 'glitch 0.3s infinite';
+            objectiveDiv.style.transform = 'skewX(-5deg)';
+            document.body.appendChild(objectiveDiv);
+            
+            // Ajouter l'animation glitch au document
+            if(!document.getElementById('glitch-style')) {
+                const style = document.createElement('style');
+                style.id = 'glitch-style';
+                style.textContent = `
+                    @keyframes glitch {
+                        0% {
+                            text-shadow: 2px 2px 4px #000, 0 0 15px #FF0000, -2px -2px 0 #00FF00;
+                            transform: skewX(-5deg) translateX(-2px);
+                        }
+                        25% {
+                            text-shadow: -2px -2px 4px #000, 0 0 15px #FF00FF, 2px 2px 0 #00FFFF;
+                            transform: skewX(5deg) translateX(2px);
+                        }
+                        50% {
+                            text-shadow: 2px -2px 4px #000, 0 0 15px #FFFF00, -2px 2px 0 #FF0000;
+                            transform: skewX(-5deg) translateX(-2px);
+                        }
+                        75% {
+                            text-shadow: -2px 2px 4px #000, 0 0 15px #00FF00, 2px -2px 0 #FF00FF;
+                            transform: skewX(5deg) translateX(2px);
+                        }
+                        100% {
+                            text-shadow: 2px 2px 4px #000, 0 0 15px #FF0000, -2px -2px 0 #00FF00;
+                            transform: skewX(-5deg) translateX(-2px);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            createLabyrinth();
         }
         
         function createLabyrinth() {
@@ -611,51 +636,107 @@
             scene.background = new THREE.Color(0xFFFF99);
             scene.fog = new THREE.Fog(0xFFFF99, 50, 300);
             
-            // Sol jaune
-            const floorGeo = new THREE.PlaneGeometry(500, 500);
+            // Sol ÉNORME pour éviter la lévitation
+            const floorGeo = new THREE.PlaneGeometry(1000, 1000);
             const floorMat = new THREE.MeshLambertMaterial({color: 0xFFFF99});
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -50;
+            floor.position.y = 0;
             floor.receiveShadow = true;
+            floor.castShadow = true;
             scene.add(floor);
-            collisionObjects.push(floor);
             
-            // Créer un labyrinthe simple mais grand
-            const wallMat = new THREE.MeshLambertMaterial({color: 0xF0F000});
-            const wallHeight = 8;
+            // Créer une boîte collision pour le sol
+            const floorCollision = new THREE.Mesh(
+                new THREE.BoxGeometry(1000, 1, 1000),
+                new THREE.MeshBasicMaterial({transparent: true, opacity: 0})
+            );
+            floorCollision.position.y = 0;
+            scene.add(floorCollision);
+            collisionObjects.push(floorCollision);
             
-            // Murs extérieurs du labyrinthe
-            const outerWall1 = new THREE.Mesh(new THREE.BoxGeometry(500, wallHeight, 2), wallMat);
-            outerWall1.position.set(0, wallHeight / 2 - 50, -250);
+            // Créer un labyrinthe simple mais grand - Style BACKROOMS
+            const wallMat = new THREE.MeshLambertMaterial({color: 0xFFFBD6});
+            const wallHeight = 30;
+            
+            // Murs extérieurs du labyrinthe - BEAUCOUP PLUS GRANDS
+            const outerWall1 = new THREE.Mesh(new THREE.BoxGeometry(1000, wallHeight, 2), wallMat);
+            outerWall1.position.set(0, wallHeight / 2, -500);
+            outerWall1.castShadow = true;
+            outerWall1.receiveShadow = true;
             scene.add(outerWall1);
             collisionObjects.push(outerWall1);
             
-            const outerWall2 = new THREE.Mesh(new THREE.BoxGeometry(500, wallHeight, 2), wallMat);
-            outerWall2.position.set(0, wallHeight / 2 - 50, 250);
+            const outerWall2 = new THREE.Mesh(new THREE.BoxGeometry(1000, wallHeight, 2), wallMat);
+            outerWall2.position.set(0, wallHeight / 2, 500);
+            outerWall2.castShadow = true;
+            outerWall2.receiveShadow = true;
             scene.add(outerWall2);
             collisionObjects.push(outerWall2);
             
-            const outerWall3 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 500), wallMat);
-            outerWall3.position.set(-250, wallHeight / 2 - 50, 0);
+            const outerWall3 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 1000), wallMat);
+            outerWall3.position.set(-500, wallHeight / 2, 0);
+            outerWall3.castShadow = true;
+            outerWall3.receiveShadow = true;
             scene.add(outerWall3);
             collisionObjects.push(outerWall3);
             
-            const outerWall4 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 500), wallMat);
-            outerWall4.position.set(250, wallHeight / 2 - 50, 0);
+            const outerWall4 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 1000), wallMat);
+            outerWall4.position.set(500, wallHeight / 2, 0);
+            outerWall4.castShadow = true;
+            outerWall4.receiveShadow = true;
             scene.add(outerWall4);
             collisionObjects.push(outerWall4);
             
-            // Créer des murs de labyrinthe
+            // Créer des murs de labyrinthe avec ombres - BEAUCOUP PLUS SERRÉS
             const wallPositions = [
-                {x: -100, z: -100, horizontal: true, length: 150},
-                {x: -50, z: 0, horizontal: false, length: 200},
-                {x: 50, z: 80, horizontal: true, length: 180},
-                {x: 0, z: 150, horizontal: true, length: 200},
-                {x: -150, z: 50, horizontal: false, length: 100},
-                {x: 100, z: -150, horizontal: false, length: 150},
-                {x: -80, z: -200, horizontal: true, length: 120},
-                {x: 150, z: -80, horizontal: true, length: 100},
+                // Murs principaux
+                {x: -100, z: -100, horizontal: true, length: 200},
+                {x: -100, z: 100, horizontal: true, length: 200},
+                {x: 100, z: -100, horizontal: true, length: 200},
+                {x: 100, z: 100, horizontal: true, length: 200},
+                
+                // Murs verticaux serrés
+                {x: -50, z: -150, horizontal: false, length: 200},
+                {x: 0, z: -150, horizontal: false, length: 200},
+                {x: 50, z: -150, horizontal: false, length: 200},
+                {x: -50, z: 150, horizontal: false, length: 200},
+                {x: 0, z: 150, horizontal: false, length: 200},
+                {x: 50, z: 150, horizontal: false, length: 200},
+                
+                // Murs horizontaux serrés
+                {x: -150, z: -50, horizontal: true, length: 200},
+                {x: -150, z: 0, horizontal: true, length: 200},
+                {x: -150, z: 50, horizontal: true, length: 200},
+                {x: 150, z: -50, horizontal: true, length: 200},
+                {x: 150, z: 0, horizontal: true, length: 200},
+                {x: 150, z: 50, horizontal: true, length: 200},
+                
+                // Murs intérieurs pour plus d'oppression
+                {x: -30, z: -30, horizontal: true, length: 80},
+                {x: -30, z: 30, horizontal: true, length: 80},
+                {x: 30, z: -30, horizontal: true, length: 80},
+                {x: 30, z: 30, horizontal: true, length: 80},
+                {x: -30, z: -30, horizontal: false, length: 80},
+                {x: -30, z: 30, horizontal: false, length: 80},
+                {x: 30, z: -30, horizontal: false, length: 80},
+                {x: 30, z: 30, horizontal: false, length: 80},
+                
+                // Murs additionnels pour créer des passages
+                {x: -200, z: -200, horizontal: true, length: 100},
+                {x: -200, z: 200, horizontal: true, length: 100},
+                {x: 200, z: -200, horizontal: true, length: 100},
+                {x: 200, z: 200, horizontal: true, length: 100},
+                {x: -200, z: -200, horizontal: false, length: 100},
+                {x: -200, z: 200, horizontal: false, length: 100},
+                {x: 200, z: -200, horizontal: false, length: 100},
+                {x: 200, z: 200, horizontal: false, length: 100},
+                
+                // Murs diagonaux pour plus de complexité
+                {x: -250, z: 0, horizontal: false, length: 150},
+                {x: 250, z: 0, horizontal: false, length: 150},
+                {x: 0, z: -250, horizontal: true, length: 150},
+                {x: 0, z: 250, horizontal: true, length: 150},
             ];
             
             wallPositions.forEach(wall => {
@@ -666,40 +747,42 @@
                     new THREE.BoxGeometry(w, wallHeight, z),
                     wallMat
                 );
-                mesh.position.set(wall.x, wallHeight / 2 - 50, wall.z);
+                mesh.position.set(wall.x, wallHeight / 2, wall.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
                 scene.add(mesh);
                 collisionObjects.push(mesh);
             });
             
-            // Créer l'entité secrète (ombre qui poursuit)
+            // Créer l'entité secrète (ombre qui poursuit) - ÉNORME
             secretEntity = new THREE.Group();
             
             const entityBody = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 3, 2),
-                new THREE.MeshBasicMaterial({color: 0x333333})
+                new THREE.BoxGeometry(12, 20, 12),
+                new THREE.MeshBasicMaterial({color: 0x1a1a1a})
             );
             
             const entityEyes = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.SphereGeometry(2, 8, 8),
                 new THREE.MeshBasicMaterial({color: 0xFF0000})
             );
-            entityEyes.position.set(0, 1.5, 1.2);
+            entityEyes.position.set(-2.5, 3, 7);
             
             const entityEyes2 = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.SphereGeometry(2, 8, 8),
                 new THREE.MeshBasicMaterial({color: 0xFF0000})
             );
-            entityEyes2.position.set(0, 0.8, 1.2);
+            entityEyes2.position.set(2.5, 3, 7);
             
             secretEntity.add(entityBody, entityEyes, entityEyes2);
-            secretEntity.position.set(200, -40, 200);
+            secretEntity.position.set(200, 5, 200);
             secretEntity.userData = {
                 speed: 0.15,
                 detectionRadius: 300
             };
             scene.add(secretEntity);
             
-            player.position.set(0, -42, 0);
+            player.position.set(0, 1, 0);
             velocity.set(0, 0, 0);
         }
         
@@ -847,6 +930,21 @@
             return maxHeight;
         }
         
+        function checkWallCollision(newPos, radius = 0.4) {
+            const playerBox = new THREE.Box3().setFromCenterAndSize(
+                newPos,
+                new THREE.Vector3(radius * 2, 1.8, radius * 2)
+            );
+            
+            for(let obj of collisionObjects) {
+                const objBox = new THREE.Box3().setFromObject(obj);
+                if(playerBox.intersectsBox(objBox)) {
+                    return obj;
+                }
+            }
+            return null;
+        }
+        
         function updatePlayer() {
             const forward = new THREE.Vector3(
                 -Math.sin(mouseX),
@@ -878,68 +976,74 @@
                 moveZ -= right.z;
             }
             
-            // Noclip mode
-            if(noclipEnabled) {
-                velocity.x += moveX * MOVE_SPEED;
-                velocity.z += moveZ * MOVE_SPEED;
-                
-                // Contrôle vertical en noclip
-                if(keys['Space']) {
-                    velocity.y = 0.2;
-                }
-                if(keys['ShiftLeft']) {
-                    velocity.y = -0.2;
-                }
-                if(!keys['Space'] && !keys['ShiftLeft']) {
-                    velocity.y = 0;
-                }
-                
-                velocity.x *= FRICTION;
-                velocity.z *= FRICTION;
-                
-                player.position.x += velocity.x;
-                player.position.z += velocity.z;
-                player.position.y += velocity.y;
-                
+            velocity.x += moveX * MOVE_SPEED;
+            velocity.z += moveZ * MOVE_SPEED;
+            
+            velocity.x *= FRICTION;
+            velocity.z *= FRICTION;
+            
+            // Essayer de se déplacer
+            const newX = player.position.x + velocity.x;
+            const newZ = player.position.z + velocity.z;
+            const testPos = new THREE.Vector3(newX, player.position.y, newZ);
+            
+            // Vérifier les collisions avec les murs
+            if(!checkWallCollision(testPos)) {
+                // Pas de collision, on peut se déplacer
+                player.position.x = newX;
+                player.position.z = newZ;
             } else {
-                // Mode normal
-                velocity.x += moveX * MOVE_SPEED;
-                velocity.z += moveZ * MOVE_SPEED;
-                
-                velocity.x *= FRICTION;
-                velocity.z *= FRICTION;
-                
-                player.position.x += velocity.x;
-                player.position.z += velocity.z;
-                
-                velocity.y -= GRAVITY;
-                player.position.y += velocity.y;
-                
-                const groundHeight = getGroundHeight(player.position.x, player.position.z, player.position.y - 1);
-                
-                if(player.position.y - 1 <= groundHeight && velocity.y <= 0) {
-                    player.position.y = groundHeight + 1;
-                    velocity.y = 0;
-                    isGrounded = true;
+                // Il y a une collision, essayer de se déplacer seulement en X
+                const testPosX = new THREE.Vector3(newX, player.position.y, player.position.z);
+                if(!checkWallCollision(testPosX)) {
+                    player.position.x = newX;
                 } else {
-                    isGrounded = false;
-                }
-                
-                if(keys['Space'] && isGrounded) {
-                    velocity.y = JUMP_FORCE;
-                    isGrounded = false;
-                }
-                
-                if(!inLevel) {
-                    const dist = player.position.distanceTo(painting.position);
-                    if(dist < 6 && keys['KeyE']) {
-                        inLevel = true;
-                        createBobOmbBattlefield();
+                    // Essayer seulement en Z
+                    const testPosZ = new THREE.Vector3(player.position.x, player.position.y, newZ);
+                    if(!checkWallCollision(testPosZ)) {
+                        player.position.z = newZ;
                     }
-                } else {
-                    updateEnemies();
-                    checkStarCollection();
                 }
+                // Annuler la vélocité si complètement bloqué
+                velocity.x = 0;
+                velocity.z = 0;
+            }
+            
+            velocity.y -= GRAVITY;
+            player.position.y += velocity.y;
+            
+            const groundHeight = getGroundHeight(player.position.x, player.position.z, player.position.y - 1);
+            
+            if(player.position.y - 1 <= groundHeight && velocity.y <= 0) {
+                player.position.y = groundHeight + 1;
+                velocity.y = 0;
+                isGrounded = true;
+            } else {
+                isGrounded = false;
+            }
+            
+            if(keys['Space'] && isGrounded) {
+                velocity.y = JUMP_FORCE;
+                isGrounded = false;
+            }
+            
+            if(!inLevel) {
+                const dist = player.position.distanceTo(painting.position);
+                if(dist < 6 && keys['KeyE']) {
+                    inLevel = true;
+                    createBobOmbBattlefield();
+                }
+            } else {
+                // Vérifier si on est près de la plaque rouge
+                if(redPlate && !inLabyrinth) {
+                    const distToPlate = player.position.distanceTo(redPlate.position);
+                    if(distToPlate < 4 && keys['KeyE']) {
+                        enterLabyrinth();
+                    }
+                }
+                
+                updateEnemies();
+                checkStarCollection();
             }
             
             if(Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
@@ -1027,6 +1131,46 @@
             camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
         }
         
+        function updatePlayerCorruption() {
+            if(!player.userData) return;
+            
+            if(inLabyrinth) {
+                // Mario devient une ombre NOIRE dans les backrooms
+                player.children.forEach(child => {
+                    if(child.material) {
+                        child.material.color.setHex(0x000000);
+                        child.material.opacity = 0.8;
+                        child.material.transparent = true;
+                    }
+                });
+            } else {
+                // Réinitialiser Mario à la normale en dehors
+                player.children.forEach((child, index) => {
+                    if(child.material) {
+                        // Restaurer les couleurs originales
+                        if(child === player.children[0] || child === player.children[3] || child === player.children[4]) {
+                            // Body, cap, visor = rouge
+                            child.material.color.setHex(0xE52521);
+                        } else if(child === player.children[1]) {
+                            // Overalls = bleu
+                            child.material.color.setHex(0x0430D9);
+                        } else if(child === player.children[2]) {
+                            // Head = skin
+                            child.material.color.setHex(0xFFDBAC);
+                        } else if(child === player.children[5] || child === player.children[6]) {
+                            // Gloves = blanc
+                            child.material.color.setHex(0xFFFFFF);
+                        } else if(child === player.children[7] || child === player.children[8]) {
+                            // Shoes = brown
+                            child.material.color.setHex(0x8B4513);
+                        }
+                        child.material.opacity = 1;
+                        child.material.transparent = false;
+                    }
+                });
+            }
+        }
+        
         function updateExplosionParticles() {
             for(let i = explosionParticles.length - 1; i >= 0; i--) {
                 const particle = explosionParticles[i];
@@ -1078,6 +1222,7 @@
         function animate() {
             requestAnimationFrame(animate);
             updatePlayer();
+            updatePlayerCorruption();
             updateExplosionParticles();
             if(inLabyrinth) {
                 updateSecretEntity();
