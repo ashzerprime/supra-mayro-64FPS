@@ -199,32 +199,34 @@
         
         document.getElementById('startBtn').addEventListener('click', startGame);
         
-        document.addEventListener('keydown', (e) => {
-            // Easter egg detection avec timeout
-            const currentTime = Date.now();
+        
+        function startGame() {
+            if (gameStarted) return;
+            gameStarted = true;
             
-            if(currentTime - lastKeyTime > EASTER_EGG_TIMEOUT) {
-                easterKeySequence = [];
-            }
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('gameCanvas').classList.remove('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('instructions').classList.remove('hidden');
             
-            easterKeySequence.push(e.code);
-            lastKeyTime = currentTime;
-            
-            if(easterKeySequence.length > 3) easterKeySequence.shift();
-            
-            if(JSON.stringify(easterKeySequence) === JSON.stringify(easterKeyCode)) {
-                triggerEasterEgg();
-                easterKeySequence = [];
-            }
-        });
+            init();
+            animate();
+        }
         
         function triggerEasterEgg() {
             if(inLevel && !inLabyrinth) {
+                console.log('Activation du mode secret !');
                 noclipEnabled = true;
                 inLabyrinth = true;
                 document.getElementById('victoryMessage').style.display = 'none';
                 
+                // Retirer le HUD normal
+                document.getElementById('hud').style.display = 'none';
+                
                 // Ajouter le message "Objectif : Survivre !!"
+                const existingObjective = document.getElementById('objective');
+                if(existingObjective) existingObjective.remove();
+                
                 const objectiveDiv = document.createElement('div');
                 objectiveDiv.id = 'objective';
                 objectiveDiv.textContent = 'Objectif : Survivre !!';
@@ -239,21 +241,10 @@
                 document.body.appendChild(objectiveDiv);
                 
                 createLabyrinth();
+            } else {
+                console.log('Code secret détecté mais pas activable maintenant');
+                console.log('inLevel:', inLevel, 'inLabyrinth:', inLabyrinth);
             }
-        }
-        
-        
-        function startGame() {
-            if (gameStarted) return;
-            gameStarted = true;
-            
-            document.getElementById('menu').classList.add('hidden');
-            document.getElementById('gameCanvas').classList.remove('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            document.getElementById('instructions').classList.remove('hidden');
-            
-            init();
-            animate();
         }
         
         function init() {
@@ -286,7 +277,32 @@
             createPlayer();
             createCastle();
             
-            document.addEventListener('keydown', (e) => keys[e.code] = true);
+            // Un seul listener keydown qui gère à la fois le code secret et les touches normales
+            document.addEventListener('keydown', (e) => {
+                // Mettre à jour les touches normales
+                keys[e.code] = true;
+                
+                // Gestion du code secret F+G+M
+                const currentTime = Date.now();
+                
+                if(easterKeySequence.length > 0 && currentTime - lastKeyTime > EASTER_EGG_TIMEOUT) {
+                    easterKeySequence = [];
+                }
+                
+                easterKeySequence.push(e.code);
+                lastKeyTime = currentTime;
+                
+                console.log('Touche appuyée:', e.code, 'Séquence:', easterKeySequence);
+                
+                if(easterKeySequence.length > 3) easterKeySequence.shift();
+                
+                if(JSON.stringify(easterKeySequence) === JSON.stringify(easterKeyCode)) {
+                    console.log('🎉 CODE SECRET DÉTECTÉ !');
+                    triggerEasterEgg();
+                    easterKeySequence = [];
+                }
+            });
+            
             document.addEventListener('keyup', (e) => keys[e.code] = false);
             
             document.addEventListener('mousemove', (e) => {
