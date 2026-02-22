@@ -148,7 +148,7 @@
     
     <div id="hud" class="hidden">
         <div>★ Étoiles: <span id="stars">0</span>/1</div>
-        <div>💚 Vie: <span id="health">3</span></div>
+        <div>Vie: <span id="health">3</span></div>
     </div>
     
     <div id="instructions" class="hidden">
@@ -160,6 +160,9 @@
         Tu as attrapé l'étoile !<br>
         <small style="font-size: 0.6em; margin-top: 20px; display: block;">
             La suite sur le prochain site en cours de création...
+        </small>
+        <small style="font-size: 0.5em; margin-top: 10px; display: block; color: rgba(0,0,0,0.7);">
+            (appuie sur F+G+M pour plus de blagues)
         </small>
     </div>
 
@@ -178,13 +181,67 @@
         let collisionObjects = [];
         let starObject = null;
         let damageTimeout = false;
+        let explosionParticles = [];
         
         const GRAVITY = 0.018;
         const JUMP_FORCE = 0.4;
-        const MOVE_SPEED = 0.12;
-        const FRICTION = 0.85;
+        const MOVE_SPEED = 0.05; // Réduit de 0.12 à 0.05 pour un Mario plus lent
+        const FRICTION = 0.92; // Augmenté pour moins de glisse (était 0.85)
+        
+        // Easter egg F+G+M
+        let easterKeySequence = [];
+        const easterKeyCode = ['KeyF', 'KeyG', 'KeyM'];
+        let lastKeyTime = 0;
+        const EASTER_EGG_TIMEOUT = 30000; // 30 secondes
+        let noclipEnabled = false;
+        let inLabyrinth = false;
+        let secretEntity = null;
         
         document.getElementById('startBtn').addEventListener('click', startGame);
+        
+        document.addEventListener('keydown', (e) => {
+            // Easter egg detection avec timeout
+            const currentTime = Date.now();
+            
+            if(currentTime - lastKeyTime > EASTER_EGG_TIMEOUT) {
+                easterKeySequence = [];
+            }
+            
+            easterKeySequence.push(e.code);
+            lastKeyTime = currentTime;
+            
+            if(easterKeySequence.length > 3) easterKeySequence.shift();
+            
+            if(JSON.stringify(easterKeySequence) === JSON.stringify(easterKeyCode)) {
+                triggerEasterEgg();
+                easterKeySequence = [];
+            }
+        });
+        
+        function triggerEasterEgg() {
+            if(inLevel && !inLabyrinth) {
+                noclipEnabled = true;
+                inLabyrinth = true;
+                document.getElementById('victoryMessage').style.display = 'none';
+                
+                // Ajouter le message "Objectif : Survivre !!"
+                const objectiveDiv = document.createElement('div');
+                objectiveDiv.id = 'objective';
+                objectiveDiv.textContent = 'Objectif : Survivre !!';
+                objectiveDiv.style.position = 'absolute';
+                objectiveDiv.style.top = '20px';
+                objectiveDiv.style.left = '20px';
+                objectiveDiv.style.color = '#FF0000';
+                objectiveDiv.style.fontSize = '1.8em';
+                objectiveDiv.style.fontWeight = 'bold';
+                objectiveDiv.style.textShadow = '2px 2px 4px #000';
+                objectiveDiv.style.zIndex = '150';
+                document.body.appendChild(objectiveDiv);
+                
+                createLabyrinth();
+            }
+        }
+        
         
         function startGame() {
             if (gameStarted) return;
@@ -297,6 +354,7 @@
             scene.add(player);
         }
         
+
         function createCastle() {
             collisionObjects = [];
             
@@ -313,16 +371,21 @@
             const wallBack = new THREE.Mesh(new THREE.BoxGeometry(60, 25, 2), wallMat);
             wallBack.position.set(0, 12, -30);
             wallBack.receiveShadow = true;
+            wallBack.castShadow = true;
             scene.add(wallBack);
             collisionObjects.push(wallBack);
             
             const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(2, 25, 60), wallMat);
             wallLeft.position.set(-30, 12, 0);
+            wallLeft.castShadow = true;
+            wallLeft.receiveShadow = true;
             scene.add(wallLeft);
             collisionObjects.push(wallLeft);
             
             const wallRight = new THREE.Mesh(new THREE.BoxGeometry(2, 25, 60), wallMat);
             wallRight.position.set(30, 12, 0);
+            wallRight.castShadow = true;
+            wallRight.receiveShadow = true;
             scene.add(wallRight);
             collisionObjects.push(wallRight);
             
@@ -362,21 +425,54 @@
             
             collisionObjects = [];
             enemies = [];
+            explosionParticles = [];
             
-            const groundGeo = new THREE.CircleGeometry(80, 32);
+            // Agrandir la map
+            const groundGeo = new THREE.CircleGeometry(150, 32);
             const groundMat = new THREE.MeshLambertMaterial({color: 0x5D8C3F});
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
             
-            for(let i = 0; i < 10; i++) {
+            // Ajouter des murs invisibles tout autour pour empêcher de sortir
+            const wallMaterial = new THREE.MeshBasicMaterial({
+                transparent: true,
+                opacity: 0
+            });
+            
+            // Mur Nord
+            const wallNorth = new THREE.Mesh(new THREE.BoxGeometry(300, 50, 1), wallMaterial);
+            wallNorth.position.set(0, 25, -150);
+            scene.add(wallNorth);
+            collisionObjects.push(wallNorth);
+            
+            // Mur Sud
+            const wallSouth = new THREE.Mesh(new THREE.BoxGeometry(300, 50, 1), wallMaterial);
+            wallSouth.position.set(0, 25, 150);
+            scene.add(wallSouth);
+            collisionObjects.push(wallSouth);
+            
+            // Mur Est
+            const wallEast = new THREE.Mesh(new THREE.BoxGeometry(1, 50, 300), wallMaterial);
+            wallEast.position.set(150, 25, 0);
+            scene.add(wallEast);
+            collisionObjects.push(wallEast);
+            
+            // Mur Ouest
+            const wallWest = new THREE.Mesh(new THREE.BoxGeometry(1, 50, 300), wallMaterial);
+            wallWest.position.set(-150, 25, 0);
+            scene.add(wallWest);
+            collisionObjects.push(wallWest);
+            
+            // Ajouter des plates-formes aléatoires
+            for(let i = 0; i < 15; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const radius = 15 + Math.random() * 35;
+                const radius = 20 + Math.random() * 80;
                 const x = Math.cos(angle) * radius;
                 const z = Math.sin(angle) * radius;
-                const size = 4 + Math.random() * 2;
-                const height = 1 + Math.random() * 3;
+                const size = 5 + Math.random() * 3;
+                const height = 2 + Math.random() * 4;
                 
                 const platform = new THREE.Mesh(
                     new THREE.BoxGeometry(size, 1, size),
@@ -388,6 +484,37 @@
                 scene.add(platform);
                 collisionObjects.push(platform);
             }
+            
+            // Ajouter des arbres au Bob-omb Battlefield
+            const treePositions = [
+                {x: -80, z: -80}, {x: 80, z: -80}, {x: -80, z: 80},
+                {x: 80, z: 80}, {x: 0, z: -100}, {x: 0, z: 100},
+                {x: -100, z: 0}, {x: 100, z: 0}, {x: -50, z: -50},
+                {x: 50, z: -50}, {x: -50, z: 50}, {x: 50, z: 50},
+                {x: -120, z: 30}, {x: 120, z: 30}, {x: -30, z: 120}
+            ];
+            
+            treePositions.forEach(pos => {
+                const tree = new THREE.Group();
+                
+                const trunkMat = new THREE.MeshLambertMaterial({color: 0x8B4513});
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 6, 8), trunkMat);
+                trunk.position.y = 3;
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                tree.add(trunk);
+                
+                const leafMat = new THREE.MeshLambertMaterial({color: 0x228B22});
+                const foliage = new THREE.Mesh(new THREE.ConeGeometry(4, 8, 12), leafMat);
+                foliage.position.y = 8;
+                foliage.castShadow = true;
+                foliage.receiveShadow = true;
+                tree.add(foliage);
+                
+                tree.position.set(pos.x, 0, pos.z);
+                scene.add(tree);
+                collisionObjects.push(tree);
+            });
             
             const mountainSteps = [
                 {x: -40, y: 2, z: -30, size: 6},
@@ -417,10 +544,10 @@
             for(let i = 0; i < 5; i++) {
                 const enemy = createBobOmb();
                 const angle = (i / 5) * Math.PI * 2;
-                const radius = 20 + Math.random() * 15;
+                const radius = 30 + Math.random() * 30;
                 enemy.position.set(
                     Math.cos(angle) * radius,
-                    1.2,
+                    2,
                     Math.sin(angle) * radius
                 );
                 scene.add(enemy);
@@ -452,9 +579,114 @@
             starObject.position.set(-40, 32, -38);
             scene.add(starObject);
             
-            player.position.set(0, 1, 0);
+            player.position.set(0, 2, 0);
             velocity.set(0, 0, 0);
         }
+        
+        function createLabyrinth() {
+            scene.children = scene.children.filter(c => 
+                c === player || c.type === 'AmbientLight' || c.type === 'DirectionalLight'
+            );
+            
+            collisionObjects = [];
+            enemies = [];
+            
+            // Scene sombre jaune (Backrooms Level 0)
+            scene.background = new THREE.Color(0xFFFF99);
+            scene.fog = new THREE.Fog(0xFFFF99, 50, 300);
+            
+            // Sol jaune
+            const floorGeo = new THREE.PlaneGeometry(500, 500);
+            const floorMat = new THREE.MeshLambertMaterial({color: 0xFFFF99});
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -50;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            collisionObjects.push(floor);
+            
+            // Créer un labyrinthe simple mais grand
+            const wallMat = new THREE.MeshLambertMaterial({color: 0xF0F000});
+            const wallHeight = 8;
+            
+            // Murs extérieurs du labyrinthe
+            const outerWall1 = new THREE.Mesh(new THREE.BoxGeometry(500, wallHeight, 2), wallMat);
+            outerWall1.position.set(0, wallHeight / 2 - 50, -250);
+            scene.add(outerWall1);
+            collisionObjects.push(outerWall1);
+            
+            const outerWall2 = new THREE.Mesh(new THREE.BoxGeometry(500, wallHeight, 2), wallMat);
+            outerWall2.position.set(0, wallHeight / 2 - 50, 250);
+            scene.add(outerWall2);
+            collisionObjects.push(outerWall2);
+            
+            const outerWall3 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 500), wallMat);
+            outerWall3.position.set(-250, wallHeight / 2 - 50, 0);
+            scene.add(outerWall3);
+            collisionObjects.push(outerWall3);
+            
+            const outerWall4 = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, 500), wallMat);
+            outerWall4.position.set(250, wallHeight / 2 - 50, 0);
+            scene.add(outerWall4);
+            collisionObjects.push(outerWall4);
+            
+            // Créer des murs de labyrinthe
+            const wallPositions = [
+                {x: -100, z: -100, horizontal: true, length: 150},
+                {x: -50, z: 0, horizontal: false, length: 200},
+                {x: 50, z: 80, horizontal: true, length: 180},
+                {x: 0, z: 150, horizontal: true, length: 200},
+                {x: -150, z: 50, horizontal: false, length: 100},
+                {x: 100, z: -150, horizontal: false, length: 150},
+                {x: -80, z: -200, horizontal: true, length: 120},
+                {x: 150, z: -80, horizontal: true, length: 100},
+            ];
+            
+            wallPositions.forEach(wall => {
+                const w = wall.horizontal ? wall.length : 2;
+                const z = wall.horizontal ? 2 : wall.length;
+                
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, wallHeight, z),
+                    wallMat
+                );
+                mesh.position.set(wall.x, wallHeight / 2 - 50, wall.z);
+                scene.add(mesh);
+                collisionObjects.push(mesh);
+            });
+            
+            // Créer l'entité secrète (ombre qui poursuit)
+            secretEntity = new THREE.Group();
+            
+            const entityBody = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 3, 2),
+                new THREE.MeshBasicMaterial({color: 0x333333})
+            );
+            
+            const entityEyes = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshBasicMaterial({color: 0xFF0000})
+            );
+            entityEyes.position.set(0, 1.5, 1.2);
+            
+            const entityEyes2 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshBasicMaterial({color: 0xFF0000})
+            );
+            entityEyes2.position.set(0, 0.8, 1.2);
+            
+            secretEntity.add(entityBody, entityEyes, entityEyes2);
+            secretEntity.position.set(200, -40, 200);
+            secretEntity.userData = {
+                speed: 0.15,
+                detectionRadius: 300
+            };
+            scene.add(secretEntity);
+            
+            player.position.set(0, -42, 0);
+            velocity.set(0, 0, 0);
+        }
+        
         
         function createBobOmb() {
             const enemy = new THREE.Group();
@@ -507,10 +739,57 @@
                 vz: (Math.random() - 0.5) * 0.05,
                 chaseSpeed: 0.08,
                 detectionRadius: 15,
-                attackRadius: 2
+                attackRadius: 2,
+                isExploding: false
             };
             
             return enemy;
+        }
+        
+        function explodeBobOmb(enemy) {
+            if(enemy.userData.isExploding) return;
+            enemy.userData.isExploding = true;
+            
+            // Créer une explosion
+            const explosionCenter = enemy.position.clone();
+            
+            // Particules d'explosion
+            for(let i = 0; i < 15; i++) {
+                const particle = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 0.3, 0.3),
+                    new THREE.MeshLambertMaterial({color: 0xFF6600})
+                );
+                particle.position.copy(explosionCenter);
+                
+                const angle = (Math.random() * Math.PI * 2);
+                const speed = 0.3 + Math.random() * 0.3;
+                
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        Math.cos(angle) * speed,
+                        Math.random() * 0.2 + 0.1,
+                        Math.sin(angle) * speed
+                    ),
+                    lifetime: 0,
+                    maxLifetime: 30
+                };
+                
+                scene.add(particle);
+                explosionParticles.push(particle);
+            }
+            
+            // Effet de lumière explosion
+            const explosionLight = new THREE.PointLight(0xFF6600, 2, 20);
+            explosionLight.position.copy(explosionCenter);
+            scene.add(explosionLight);
+            
+            setTimeout(() => {
+                scene.remove(explosionLight);
+            }, 300);
+            
+            // Retirer la Bob Omb
+            scene.remove(enemy);
+            enemies = enemies.filter(e => e !== enemy);
         }
         
         function checkCollision(pos, radius = 0.5) {
@@ -583,42 +862,68 @@
                 moveZ -= right.z;
             }
             
-            velocity.x += moveX * MOVE_SPEED;
-            velocity.z += moveZ * MOVE_SPEED;
-            
-            velocity.x *= FRICTION;
-            velocity.z *= FRICTION;
-            
-            player.position.x += velocity.x;
-            player.position.z += velocity.z;
-            
-            velocity.y -= GRAVITY;
-            player.position.y += velocity.y;
-            
-            const groundHeight = getGroundHeight(player.position.x, player.position.z, player.position.y - 1);
-            
-            if(player.position.y - 1 <= groundHeight && velocity.y <= 0) {
-                player.position.y = groundHeight + 1;
-                velocity.y = 0;
-                isGrounded = true;
-            } else {
-                isGrounded = false;
-            }
-            
-            if(keys['Space'] && isGrounded) {
-                velocity.y = JUMP_FORCE;
-                isGrounded = false;
-            }
-            
-            if(!inLevel) {
-                const dist = player.position.distanceTo(painting.position);
-                if(dist < 6 && keys['KeyE']) {
-                    inLevel = true;
-                    createBobOmbBattlefield();
+            // Noclip mode
+            if(noclipEnabled) {
+                velocity.x += moveX * MOVE_SPEED;
+                velocity.z += moveZ * MOVE_SPEED;
+                
+                // Contrôle vertical en noclip
+                if(keys['Space']) {
+                    velocity.y = 0.2;
                 }
+                if(keys['ShiftLeft']) {
+                    velocity.y = -0.2;
+                }
+                if(!keys['Space'] && !keys['ShiftLeft']) {
+                    velocity.y = 0;
+                }
+                
+                velocity.x *= FRICTION;
+                velocity.z *= FRICTION;
+                
+                player.position.x += velocity.x;
+                player.position.z += velocity.z;
+                player.position.y += velocity.y;
+                
             } else {
-                updateEnemies();
-                checkStarCollection();
+                // Mode normal
+                velocity.x += moveX * MOVE_SPEED;
+                velocity.z += moveZ * MOVE_SPEED;
+                
+                velocity.x *= FRICTION;
+                velocity.z *= FRICTION;
+                
+                player.position.x += velocity.x;
+                player.position.z += velocity.z;
+                
+                velocity.y -= GRAVITY;
+                player.position.y += velocity.y;
+                
+                const groundHeight = getGroundHeight(player.position.x, player.position.z, player.position.y - 1);
+                
+                if(player.position.y - 1 <= groundHeight && velocity.y <= 0) {
+                    player.position.y = groundHeight + 1;
+                    velocity.y = 0;
+                    isGrounded = true;
+                } else {
+                    isGrounded = false;
+                }
+                
+                if(keys['Space'] && isGrounded) {
+                    velocity.y = JUMP_FORCE;
+                    isGrounded = false;
+                }
+                
+                if(!inLevel) {
+                    const dist = player.position.distanceTo(painting.position);
+                    if(dist < 6 && keys['KeyE']) {
+                        inLevel = true;
+                        createBobOmbBattlefield();
+                    }
+                } else {
+                    updateEnemies();
+                    checkStarCollection();
+                }
             }
             
             if(Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
@@ -652,6 +957,8 @@
                 enemy.rotation.y += 0.02;
                 
                 if(distToPlayer < enemy.userData.attackRadius && !damageTimeout) {
+                    // Explosion au lieu de dégâts directs
+                    explodeBobOmb(enemy);
                     takeDamage();
                 }
             });
@@ -704,9 +1011,62 @@
             camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
         }
         
+        function updateExplosionParticles() {
+            for(let i = explosionParticles.length - 1; i >= 0; i--) {
+                const particle = explosionParticles[i];
+                
+                particle.userData.lifetime++;
+                
+                particle.position.add(particle.userData.velocity);
+                particle.userData.velocity.y -= 0.01; // Gravité
+                
+                const alpha = 1 - (particle.userData.lifetime / particle.userData.maxLifetime);
+                particle.material.opacity = alpha;
+                particle.material.transparent = true;
+                
+                if(particle.userData.lifetime >= particle.userData.maxLifetime) {
+                    scene.remove(particle);
+                    explosionParticles.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateSecretEntity() {
+            if(!secretEntity) return;
+            
+            const distToPlayer = secretEntity.position.distanceTo(player.position);
+            
+            if(distToPlayer < secretEntity.userData.detectionRadius) {
+                const dirX = player.position.x - secretEntity.position.x;
+                const dirZ = player.position.z - secretEntity.position.z;
+                const length = Math.sqrt(dirX * dirX + dirZ * dirZ);
+                
+                secretEntity.position.x += (dirX / length) * secretEntity.userData.speed;
+                secretEntity.position.z += (dirZ / length) * secretEntity.userData.speed;
+                
+                const angle = Math.atan2(dirX, dirZ);
+                secretEntity.rotation.y = angle;
+            }
+        }
+        
+        function checkSecretEntityCollision() {
+            if(!secretEntity) return;
+            
+            const distToPlayer = secretEntity.position.distanceTo(player.position);
+            if(distToPlayer < 2.5) {
+                alert('💀 L\'entité t\'a attrapé ! Game Over !');
+                location.reload();
+            }
+        }
+        
         function animate() {
             requestAnimationFrame(animate);
             updatePlayer();
+            updateExplosionParticles();
+            if(inLabyrinth) {
+                updateSecretEntity();
+                checkSecretEntityCollision();
+            }
             updateCamera();
             renderer.render(scene, camera);
         }
